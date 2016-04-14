@@ -95,12 +95,16 @@ def _call_output(what, *args, **kwargs):
                            stderr=subprocess.STDOUT, **kwargs)
 
 
+def _get_version():
+    return _call('git describe --tags HEAD')
+
+
 def build(config, services):
     """ Builds images and tags them appropriately.
 
     Where "appropriately" means with the output of:
 
-        git describe --tags --long HEAD
+        git describe --tags HEAD
 
     and 'latest' as well (so the "latest" image for each will always be the
     most recently built)
@@ -109,7 +113,7 @@ def build(config, services):
     service_names, service_dicts = services
     _call_output('docker-compose build {}'.format(' '.join(service_names)))
 
-    version = _call('git describe --tags --long HEAD')
+    version = _get_version()
 
     for service_name in service_names:
         # Tag with proper version, they're already tagged latest from build
@@ -126,7 +130,13 @@ def push(config, services):
 
     So's we can then tell the remote docker host to then pull and run them.
     """
-    pass
+    service_names, service_dicts = services
+    version = _get_version()
+    for service_name in service_names:
+        image = service_dicts[service_name]['image']
+        things = {'image': image, 'version': version}
+        _call_output('docker push {image}:latest'.format(**things))
+        _call_output('docker push {image}:{version}'.format(**things))
 
 
 def main():
