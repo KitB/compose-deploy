@@ -9,6 +9,7 @@ from compose import config
 from compose.config import environment
 
 import compose_deploy
+from compose_deploy import remote
 
 
 def _search_up(filename, stop_at_git=True):
@@ -37,10 +38,6 @@ def get_config(basedir, files):
         environment.Environment.from_env_file(basedir))
 
     return config.load(config_details)
-
-
-def get_images():
-    pass
 
 
 def parse_services_arg(config, arg_services):
@@ -139,25 +136,7 @@ def push(config, services):
         _call_output('docker push {image}:{version}'.format(**things))
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--version', '-V', action='store_true',
-                        help='Print version number and exit')
-    parser.add_argument('--file', '-f', nargs='+',
-                        default=['docker-compose.yml'],
-                        help='Same as the -f argument to docker-compose.')
-    parser.add_argument('action', choices=['build', 'push'])
-    parser.add_argument('services', nargs='*',
-                        help='Which services to work on, all if empty')
-    # TODO (KitB): How about we allow some mechanism for negating a service;
-    # '-service' would work but would confuse argparse, maybe '!service'?
-
-    args = parser.parse_args()
-
-    if args.version:
-        print compose_deploy.__version__
-        return
-
+def buildpush_main(command, args):
     _base = os.path.abspath(_search_up(args.file[0]))
 
     basedir = os.path.dirname(_base)
@@ -167,7 +146,60 @@ def main():
     actual_services = parse_services_arg(config, args.services)
 
     # Dispatch to appropriate function
-    {'build': build, 'push': push}[args.action](config, actual_services)
+    {'build': build, 'push': push}[command](config, actual_services)
+
+
+def remote_main(args):
+    remote.remote(args.server, args.command)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--version', '-V', action='store_true',
+                        help='Print version number and exit')
+
+    buildpush_parent = argparse.ArgumentParser(add_help=False)
+    buildpush_parent.add_argument(
+        '--file', '-f', nargs='+',
+        default=['docker-compose.yml'],
+        help='Same as the -f argument to docker-compose.')
+    buildpush_parent.add_argument(
+        'services', nargs='*',
+        help='Which services to work on, all if empty')
+
+    subparsers = parser.add_subparsers(dest='action')
+
+    build_parser = subparsers.add_parser('build', parents=[buildpush_parent],  # noqa
+                                         help='Build and tag the images')
+
+    remote_parser = subparsers.add_parser(
+        'remote',
+        help='Run a shell with a connection to a remote docker server')
+    remote_parser.add_argument(
+        'server',
+        help='The remote docker server to connect to; '
+             'Uses openssh underneath so setup ~/.ssh/config appropriately, '
+             'needs passwordless login '
+             '(e.g. via ssh-agent or passwordless key)')
+    remote_parser.add_argument(
+        '--command', '-c', default=None,
+        help='Command to run in the opened shell (and then immediately exit)')
+
+    push_parser = subparsers.add_parser(  # noqa
+        'push', parents=[buildpush_parent],
+        help='Push the images to their repositories')
+
+    args = parser.parse_args()
+
+    if args.version:
+        print compose_deploy.__version__
+        return
+
+    if args.action in ['build', 'push']:
+        buildpush_main(args)
+    elif args.action in ['remote']:
+        remote_main(args)
+
 
 if __name__ == '__main__':
     main()
