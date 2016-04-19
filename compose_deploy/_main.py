@@ -155,8 +155,9 @@ def remote_main(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--version', '-V', action='store_true',
-                        help='Print version number and exit')
+    parser.add_argument(
+        '--version', '-V', action='version',
+        version='%(prog)s {}'.format(compose_deploy.__version__))
 
     buildpush_parent = argparse.ArgumentParser(add_help=False)
     buildpush_parent.add_argument(
@@ -190,10 +191,6 @@ def main():
         help='Push the images to their repositories')
 
     args = parser.parse_args()
-
-    if args.version:
-        print compose_deploy.__version__
-        return
 
     if args.action in ['build', 'push']:
         buildpush_main(args.action, args)
