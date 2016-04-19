@@ -196,7 +196,7 @@ def main():
         return
 
     if args.action in ['build', 'push']:
-        buildpush_main(args)
+        buildpush_main(args.action, args)
     elif args.action in ['remote']:
         remote_main(args)
 
