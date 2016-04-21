@@ -106,7 +106,6 @@ def build(config, services):
     and 'latest' as well (so the "latest" image for each will always be the
     most recently built)
     """
-    print services
     service_names, service_dicts = services
     _call_output('docker-compose build {}'.format(' '.join(service_names)))
 
