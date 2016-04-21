@@ -5,6 +5,7 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
 
 import compose_deploy
 
@@ -15,6 +16,10 @@ LISTEN_STRING = 'UNIX-LISTEN:{},reuseaddr,fork'.format(DOCKER_HOST_PATH)
 
 SSH_COMMAND = 'ssh {} "socat STDIO UNIX-CONNECT:/var/run/docker.sock"'
 REMOTE_STRING = 'EXEC:{}'.format(SSH_COMMAND)
+
+BASH_RC = """
+PS1="docker remote shell on '{server}' $ "
+"""
 
 
 def remote(server, command=None):
@@ -39,6 +44,14 @@ def remote(server, command=None):
             to_run.extend(['-c', command])
         else:
             to_run.extend(command)
+    elif to_run[0].endswith('bash'):
+        bashrc = tempfile.NamedTemporaryFile()
+        bashrc.write(BASH_RC.format(server=server))
+        bashrc.flush()
+        to_run.extend(['--rcfile', bashrc.name])
+    elif to_run[0].endswith('zsh'):
+        os.environ['PS1'] = 'docker remote shell on "{}" $ '.format(server)
+        to_run.extend(['-f', '-d'])
 
     shell_process = subprocess.Popen(
         to_run,
