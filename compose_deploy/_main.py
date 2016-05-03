@@ -54,7 +54,7 @@ def parse_services_arg(config, arg_services):
         return services_dict_out
 
     if not arg_services:
-        return all_services, get_service_dicts(all_services)
+        return get_service_dicts(all_services)
 
     services_out = []
     added = []
@@ -78,7 +78,7 @@ def parse_services_arg(config, arg_services):
         services_out.remove(service[1:])
 
     # Keep `services_out` for ordering
-    return (services_out, get_service_dicts(services_out))
+    return get_service_dicts(services_out)
 
 
 def _call(what, *args, **kwargs):
@@ -106,14 +106,15 @@ def build(config, services):
     and 'latest' as well (so the "latest" image for each will always be the
     most recently built)
     """
-    service_names, service_dicts = services
-    _call_output('docker-compose build {}'.format(' '.join(service_names)))
+    filtered_services = {name: service for name, service in services.iteritems() if 'build' in service}
+
+    _call_output('docker-compose build {}'.format(' '.join(filtered_services.iterkeys())))
 
     version = _get_version()
 
-    for service_name in service_names:
+    for service_name, service_dict in filtered_services.iteritems():
         # Tag with proper version, they're already tagged latest from build
-        image = service_dicts[service_name]['image']
+        image = service_dict['image']
         _call('docker tag {image}:latest {image}:{version}'.format(
                 image=image,
                 version=version
@@ -126,10 +127,9 @@ def push(config, services):
 
     So's we can then tell the remote docker host to then pull and run them.
     """
-    service_names, service_dicts = services
     version = _get_version()
-    for service_name in service_names:
-        image = service_dicts[service_name]['image']
+    for service_name, service_dict in services.iteritems():
+        image = service_dict['image']
         things = {'image': image, 'version': version}
         _call_output('docker push {image}:latest'.format(**things))
         _call_output('docker push {image}:{version}'.format(**things))
