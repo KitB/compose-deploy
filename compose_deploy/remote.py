@@ -32,10 +32,11 @@ def remote(server, command=None):
               file=sys.stderr)
 
     socket_forward_process = subprocess.Popen(
-        ['/usr/bin/socat',
-         LISTEN_STRING,
-         REMOTE_STRING.format(server)
-         ])
+        ' '.join(['socat',
+                  LISTEN_STRING,
+                  REMOTE_STRING.format(server)
+                  ]),
+        shell=True)
 
     to_run = [os.getenv('SHELL', '/bin/bash')]
 
