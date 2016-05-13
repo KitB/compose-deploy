@@ -10,11 +10,11 @@ import tempfile
 import compose_deploy
 
 
-DOCKER_HOST_PATH = os.path.join(os.environ['HOME'], '.docker-remote.sock')
+DOCKER_HOST_PATH = os.path.join(os.environ['HOME'], '.docker-remote.{}.sock')
 
 LISTEN_STRING = 'UNIX-LISTEN:{},reuseaddr,fork'.format(DOCKER_HOST_PATH)
 
-SSH_COMMAND = 'ssh {} "socat STDIO UNIX-CONNECT:/var/run/docker.sock"'
+SSH_COMMAND = '\'ssh {} "socat STDIO UNIX-CONNECT:/var/run/docker.sock"\''
 REMOTE_STRING = 'EXEC:{}'.format(SSH_COMMAND)
 
 BASH_RC = """
@@ -23,7 +23,7 @@ PS1="docker remote shell on '{server}' $ "
 
 
 def remote(server, command=None):
-    os.environ['DOCKER_HOST'] = 'unix://{}'.format(DOCKER_HOST_PATH)
+    os.environ['DOCKER_HOST'] = 'unix://{}'.format(DOCKER_HOST_PATH.format(server))
     os.environ['VIRTUALENVWRAPPER_PYTHON'] = '/usr/bin/python'
 
     if command is None:
@@ -31,12 +31,12 @@ def remote(server, command=None):
               'exit this shell (usually ^D) as normal when you\'re done\n',
               file=sys.stderr)
 
-    socket_forward_process = subprocess.Popen(
-        ' '.join(['socat',
-                  LISTEN_STRING,
-                  REMOTE_STRING.format(server)
-                  ]),
-        shell=True)
+    shell_string = ' '.join(['socat',
+                             LISTEN_STRING.format(server),
+                             REMOTE_STRING.format(server)
+                             ])
+
+    socket_forward_process = subprocess.Popen(shell_string, shell=True)
 
     to_run = [os.getenv('SHELL', '/bin/bash')]
 
@@ -66,7 +66,7 @@ def remote(server, command=None):
     socket_forward_process.wait()
 
     try:
-        os.remove(DOCKER_HOST_PATH)
+        os.remove(DOCKER_HOST_PATH.format(server))
     except OSError:
         pass
 
