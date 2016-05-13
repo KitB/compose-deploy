@@ -65,6 +65,11 @@ def remote(server, command=None):
     socket_forward_process.terminate()
     socket_forward_process.wait()
 
+    try:
+        os.remove(DOCKER_HOST_PATH)
+    except OSError:
+        pass
+
     print("Done cleaning up", file=sys.stderr)
 
 
